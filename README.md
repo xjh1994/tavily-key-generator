@@ -2,12 +2,22 @@
 
 批量注册 Tavily 账户获取 API Key，并通过代理网关池化管理，对外提供统一 API 端点。
 
-## 两个模块
+## 功能概览
 
 | 模块 | 说明 |
 |------|------|
 | **Key Generator**（根目录） | 自动批量注册 Tavily 账户，获取 API Key |
 | **API Proxy**（`proxy/`） | 将多个 Key 池化，统一出口 + Web 控制台 |
+
+## 截图
+
+### Web 控制台
+
+![控制台](docs/console.jpg)
+
+### 自动注册流程
+
+![注册](docs/register.jpg)
 
 ---
 
@@ -15,14 +25,14 @@
 
 将多个 Tavily API Key 池化，对外暴露统一端点和 Token，附带 Web 管理控制台。
 
-### Proxy 功能
+### 功能
 
 - **Key 池化轮询**：Round-robin 分配请求，连续失败 3 次自动禁用
-- **Token 管理**：多个访问 Token，每个独立配额（小时/日/月限制）
-- **用量统计**：实时查看成功/失败次数、延迟、配额使用情况
-- **Web 控制台**：可视化管理 Key、Token 和用量
+- **Token 管理**：创建访问 Token，兼容 Tavily 官方 `tvly-` 格式
+- **用量统计**：实时查看总额度、已用/剩余次数，新增 Key 自动增加额度
+- **Web 控制台**：可视化管理 Key、Token 和用量，内置 API 调用示例
 - **批量导入**：支持从 `api_keys.md` 格式文本批量导入 Key
-- **兼容 Tavily 官方 API**：客户端只需改 base URL
+- **兼容 Tavily 官方 API**：客户端只需改 base URL 即可
 
 ### Docker 部署
 
@@ -37,19 +47,28 @@ docker compose up -d
 
 ### 使用方式
 
-1. 访问 `http://localhost:9874/console`，输入管理密码登录
-2. 导入 Tavily API Key（支持单个添加或从 `api_keys.md` 批量导入）
-3. 创建 Token，复制 Token ID
+1. 访问 `http://your-server:9874/console`，输入管理密码登录
+2. 导入 Tavily API Key（支持单个添加或批量导入）
+3. 创建 Token，复制 Token
 4. 在应用中调用代理：
 
 ```bash
-curl -X POST http://localhost:9874/api/search \
-  -H "Authorization: Bearer YOUR_TOKEN" \
+# Search
+curl -X POST http://your-server:9874/api/search \
+  -H "Authorization: Bearer tvly-YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"query": "hello world"}'
+
+# Extract
+curl -X POST http://your-server:9874/api/extract \
+  -H "Authorization: Bearer tvly-YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"urls": ["https://example.com"]}'
 ```
 
-### Proxy API 参考
+也可以在 body 中传 `api_key` 字段，与 Tavily 官方 SDK 用法一致。
+
+### API 参考
 
 **代理端点**（需要 Token 认证）：
 
@@ -69,6 +88,7 @@ curl -X POST http://localhost:9874/api/search \
 | PUT | `/api/keys/{id}/toggle` | 启用/禁用 Key |
 | GET/POST | `/api/tokens` | 列出/创建 Token |
 | DELETE | `/api/tokens/{id}` | 删除 Token |
+| PUT | `/api/password` | 修改管理密码 |
 
 ---
 
@@ -76,15 +96,16 @@ curl -X POST http://localhost:9874/api/search \
 
 自动批量注册 Tavily 账户并获取 API Key。
 
-### Generator 功能
+### 功能
 
 - Playwright 浏览器自动化，全流程无人值守
 - 自动解决 Cloudflare Turnstile 验证码（CapSolver API）
 - 自动接收验证邮件并完成邮箱验证
 - 可插拔邮箱后端：Cloudflare Email Worker / DuckMail
-- 批量注册，结果自动保存
+- 多线程并行注册，带冷却间隔防风控
+- 注册成功后自动上传到 Proxy 网关
 
-## 快速开始
+### 快速开始
 
 ```bash
 git clone https://github.com/skernelx/tavily-key-generator.git
@@ -96,43 +117,30 @@ cp config.example.py config.py
 python main.py
 ```
 
-## 配置说明
+### 配置说明
 
-### 验证码（必配）
+#### 验证码（必配）
 
-Tavily 注册页使用 Cloudflare Turnstile 验证码。本工具提供两种解决方式：
+Tavily 注册页使用 Cloudflare Turnstile 验证码：
 
 | 模式 | 配置值 | 成本 | 成功率 | 说明 |
 |------|--------|------|--------|------|
-| **CapSolver** | `"capsolver"` | ~$0.001/次 | **高** | **推荐**，稳定可靠，支持后台模式 |
-| 浏览器点击 | `"browser"` | 免费 | 低 | 依赖 stealth 补丁，容易被检测，仅供尝试 |
-
-**推荐使用 CapSolver**，注册即送余额，每次解决不到 1 分钱：
+| **CapSolver** | `"capsolver"` | ~$0.001/次 | **高** | **推荐**，稳定可靠 |
+| 浏览器点击 | `"browser"` | 免费 | 低 | 容易被检测，仅供尝试 |
 
 ```python
 CAPTCHA_SOLVER = "capsolver"
 CAPSOLVER_API_KEY = "CAP-xxx"   # 从 capsolver.com 获取
 ```
 
-如果想先试试免费模式（必须前台运行，成功率不高）：
-
-```python
-CAPTCHA_SOLVER = "browser"
-HEADLESS = False                # 免费模式必须前台运行
-```
-
-### 邮箱后端（必配）
+#### 邮箱后端（必配）
 
 需要一个能接收邮件的后端来获取验证链接，二选一：
 
 **方案 A：Cloudflare Email Worker**（自建，免费）
 
-需要自己的域名 + Cloudflare Email Worker（catch-all 模式）。
-
 ```python
-EMAIL_PROVIDER = "cloudflare"
 EMAIL_DOMAIN = "example.com"
-EMAIL_PREFIX = "tavily"
 EMAIL_API_URL = "https://mail.example.com"
 EMAIL_API_TOKEN = "your-token"
 ```
@@ -140,42 +148,46 @@ EMAIL_API_TOKEN = "your-token"
 **方案 B：DuckMail**（第三方临时邮箱）
 
 ```python
-EMAIL_PROVIDER = "duckmail"
 DUCKMAIL_API_BASE = "https://api.duckmail.sbs"
 DUCKMAIL_BEARER = "dk_xxx"
 DUCKMAIL_DOMAIN = "duckmail.sbs"
 ```
 
-### 自动上传到 Proxy（可选）
+配置了多个后端时，运行时会提示选择；只配置一个则自动使用。
 
-注册成功后自动将 API Key 推送到 Proxy 网关，无需手动导入：
+#### 自动上传到 Proxy（可选）
+
+注册成功后自动将 API Key 推送到 Proxy 网关：
 
 ```python
 PROXY_AUTO_UPLOAD = True
-PROXY_URL = "http://localhost:9874"       # Proxy 地址（支持远程）
-PROXY_ADMIN_PASSWORD = "your-password"    # Proxy 管理密码
+PROXY_URL = "http://your-server:9874"
+PROXY_ADMIN_PASSWORD = "your-password"
 ```
 
-Generator 和 Proxy 不在同一台机器时，填远程地址即可，如 `http://your-server:9874`。
+---
 
-## 输出
+## 注意事项
 
-注册成功的账户保存在 `api_keys.md`，同时自动上传到 Proxy（如已配置）：
+### 风控与频率限制
 
-```
-邮箱,密码,API Key,时间;
-```
+- **注册频率**：Tavily 有 IP 级别的风控机制，注册过快会导致后续请求全部失败。默认冷却间隔 45 秒 + 随机抖动，**不建议调低**
+- **并行线程**：默认 2 线程，**不建议超过 3 线程**。线程越多触发风控的概率越高
+- **IP 封禁**：同一 IP 短时间内大量注册会被临时封禁，建议单次批量不超过 20 个，间隔一段时间后再继续
+- **浏览器指纹**：使用 Firefox 无头模式，已做基本反检测处理，但不保证长期有效
+- **验证码失败**：如果频繁出现验证码失败，说明可能触发了更高级别的风控，建议暂停一段时间（数小时）后重试
 
-## FAQ
+### 免费额度
 
-**浏览器启动失败？**
-运行 `playwright install firefox`。
+- 每个 Tavily 免费账户有 **1000 次/月** API 调用额度
+- Proxy 控制台会自动计算总额度（活跃 Key 数 × 1000）
+- 添加新 Key 后总额度自动增加，禁用/删除 Key 后自动减少
 
-**验证码失败？**
-切换到 `CAPTCHA_SOLVER = "capsolver"`，免费浏览器模式成功率较低。
+### 安全建议
 
-**收不到验证邮件？**
-Cloudflare 模式检查 Worker 是否部署正确；DuckMail 模式检查 API Key 是否有效。
+- 部署 Proxy 后务必**修改默认管理密码**（可在控制台右上角修改）
+- 建议配合 Nginx 反向代理 + HTTPS 使用
+- 不要将 `config.py` 提交到公开仓库（已在 `.gitignore` 中）
 
 ## License
 

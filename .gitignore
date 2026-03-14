@@ -52,6 +52,7 @@ api_keys.md
 *.jpg
 *.jpeg
 *.gif
+!docs/*.jpg
 *.log
 
 # Playwright

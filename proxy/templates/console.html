@@ -8,8 +8,22 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a2e; min-height: 100vh; }
 .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
-h1 { font-size: 24px; margin-bottom: 4px; }
-.subtitle { color: #666; font-size: 14px; margin-bottom: 24px; }
+.header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+.header-left h1 { font-size: 24px; margin-bottom: 4px; }
+.header-left .subtitle { color: #666; font-size: 14px; }
+.user-menu { position: relative; }
+.user-btn { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: #fff; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; font-size: 14px; }
+.user-btn:hover { background: #f5f5f5; }
+.user-btn svg { width: 20px; height: 20px; }
+.dropdown { display: none; position: absolute; right: 0; top: 44px; background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.12); width: 280px; z-index: 100; padding: 16px; }
+.dropdown.show { display: block; }
+.dropdown h3 { font-size: 14px; margin-bottom: 12px; color: #333; }
+.dropdown .pwd-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.dropdown .pwd-row input { flex: 1; padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
+.dropdown .pwd-row button { white-space: nowrap; }
+.dropdown-divider { height: 1px; background: #eee; margin: 12px 0; }
+.dropdown .logout-btn { display: block; width: 100%; text-align: center; padding: 8px; color: #e74c3c; border: 1px solid #e74c3c; border-radius: 6px; cursor: pointer; font-size: 13px; background: #fff; }
+.dropdown .logout-btn:hover { background: #fdf0ef; }
 .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
 .card h2 { font-size: 18px; margin-bottom: 6px; }
 .card .desc { color: #888; font-size: 13px; margin-bottom: 16px; }
@@ -18,6 +32,7 @@ h1 { font-size: 24px; margin-bottom: 4px; }
 .stat-box .label { font-size: 13px; color: #888; margin-bottom: 4px; }
 .stat-box .value { font-size: 28px; font-weight: 700; }
 .stat-box .value span { font-size: 16px; color: #888; font-weight: 400; }
+.stat-box .remain { font-size: 13px; color: #1a8a1a; margin-top: 4px; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th { text-align: left; padding: 10px 12px; color: #888; font-weight: 500; border-bottom: 1px solid #eee; }
 td { padding: 10px 12px; border-bottom: 1px solid #f5f5f5; }
@@ -36,8 +51,18 @@ textarea { min-height: 80px; resize: vertical; }
 .tag-ok { background: #e8f5e9; color: #2e7d32; }
 .tag-off { background: #fce4ec; color: #c62828; }
 .mono { font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 13px; }
+.quota-bar { height: 4px; background: #e8e8e8; border-radius: 2px; margin-top: 3px; }
+.quota-bar-fill { height: 100%; border-radius: 2px; background: #1a8a1a; transition: width .3s; }
+.quota-bar-fill.warn { background: #f39c12; }
+.quota-bar-fill.danger { background: #e74c3c; }
 #login-box { max-width: 360px; margin: 120px auto; }
 .hidden { display: none; }
+.code-block { background: #1a1a2e; color: #e0e0e0; border-radius: 8px; padding: 16px; font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 13px; line-height: 1.6; overflow-x: auto; position: relative; }
+.code-block .comment { color: #6a9955; }
+.code-block .string { color: #ce9178; }
+.code-block .key { color: #9cdcfe; }
+.copy-code-btn { position: absolute; top: 8px; right: 8px; padding: 4px 10px; font-size: 11px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); color: #ccc; border-radius: 4px; cursor: pointer; }
+.copy-code-btn:hover { background: rgba(255,255,255,.2); }
 </style>
 </head>
 <body>
@@ -54,14 +79,48 @@ textarea { min-height: 80px; resize: vertical; }
 <!-- Dashboard -->
 <div id="dashboard" class="hidden">
 <div class="container">
-  <h1>控制台</h1>
-  <p class="subtitle">Tavily API Proxy · Key 池管理</p>
+  <div class="header">
+    <div class="header-left">
+      <h1>控制台</h1>
+      <p class="subtitle">Tavily API Proxy · Key 池管理</p>
+    </div>
+    <div class="user-menu">
+      <div class="user-btn" onclick="toggleDropdown()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0112 0v1"/></svg>
+        Admin
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="dropdown" id="user-dropdown">
+        <h3>修改密码</h3>
+        <div class="pwd-row">
+          <input type="password" id="new-pwd" placeholder="输入新密码">
+          <button class="btn btn-primary btn-sm" onclick="changePwd()">确认</button>
+        </div>
+        <div class="dropdown-divider"></div>
+        <button class="logout-btn" onclick="logout()">退出登录</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Overview -->
   <div class="card">
     <h2>用量概览</h2>
-    <p class="desc">账户级成功率、失败量与配额窗口</p>
+    <p class="desc">账户级成功率、失败量与总余额</p>
     <div class="stats-grid" id="overview-stats"></div>
+  </div>
+
+  <!-- API Usage -->
+  <div class="card">
+    <h2>调用方式</h2>
+    <p class="desc">兼容 Tavily 官方 API，替换 base URL 和 api_key 即可</p>
+    <div style="margin-bottom:12px">
+      <div style="font-size:13px;color:#666;margin-bottom:6px">API 地址</div>
+      <div class="mono" style="font-size:14px;padding:8px 12px;background:#f5f5f5;border-radius:6px;display:inline-block" id="api-base-url"></div>
+    </div>
+    <div style="font-size:13px;color:#666;margin-bottom:6px">调用示例 (curl)</div>
+    <div class="code-block" id="curl-example">
+      <button class="copy-code-btn" onclick="copyCurl()">复制</button>
+    </div>
   </div>
 
   <!-- Tokens -->
@@ -73,7 +132,7 @@ textarea { min-height: 80px; resize: vertical; }
       <button class="btn btn-primary" onclick="createToken()">创建 Token</button>
     </div>
     <div style="overflow-x:auto">
-      <table id="tokens-table"><thead><tr><th>Token</th><th>配额窗口</th><th>用量统计</th><th>操作</th></tr></thead><tbody></tbody></table>
+      <table id="tokens-table"><thead><tr><th>Token</th><th>备注</th><th>配额 / 余额</th><th>用量统计</th><th>操作</th></tr></thead><tbody></tbody></table>
     </div>
   </div>
 
@@ -132,18 +191,68 @@ function logout() {
   localStorage.removeItem('tavily_proxy_pwd');
   document.getElementById('login-box').classList.remove('hidden');
   document.getElementById('dashboard').classList.add('hidden');
+  document.getElementById('user-dropdown').classList.remove('show');
+}
+
+function toggleDropdown() {
+  document.getElementById('user-dropdown').classList.toggle('show');
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', e => {
+  const menu = document.querySelector('.user-menu');
+  if (menu && !menu.contains(e.target)) {
+    document.getElementById('user-dropdown').classList.remove('show');
+  }
+});
+
+function quotaBar(used, limit) {
+  const pct = limit ? Math.min(100, (used / limit) * 100) : 0;
+  const cls = pct >= 90 ? 'danger' : pct >= 70 ? 'warn' : '';
+  return `<div class="quota-bar"><div class="quota-bar-fill ${cls}" style="width:${pct}%"></div></div>`;
 }
 
 async function refresh() {
-  // Stats
   const stats = await api('GET', '/api/stats');
   const o = stats.overview;
+
+  // 每个 Tavily 免费 key 月限额 1000 次
+  const KEY_MONTHLY_QUOTA = 1000;
+  const totalQuota = stats.keys_active * KEY_MONTHLY_QUOTA;
+  const monthUsed = o.month_count;
+  const monthRemain = Math.max(0, totalQuota - monthUsed);
+  const usedPct = totalQuota ? Math.min(100, (monthUsed / totalQuota) * 100) : 0;
+  const remainCls = usedPct >= 90 ? 'color:#e74c3c' : usedPct >= 70 ? 'color:#f39c12' : 'color:#1a8a1a';
+
   document.getElementById('overview-stats').innerHTML = `
-    <div class="stat-box"><div class="label">今日成功</div><div class="value">${o.today_success}</div></div>
-    <div class="stat-box"><div class="label">今日失败</div><div class="value">${o.today_failed}</div></div>
-    <div class="stat-box"><div class="label">本月成功</div><div class="value">${o.month_success}</div></div>
+    <div class="stat-box"><div class="label">本月总额度</div><div class="value">${totalQuota.toLocaleString()}</div><div class="remain">Key ${stats.keys_active} × ${KEY_MONTHLY_QUOTA}</div></div>
+    <div class="stat-box"><div class="label">已用次数</div><div class="value">${monthUsed}</div><div class="remain">成功 ${o.month_success} / 失败 ${monthUsed - o.month_success}</div></div>
+    <div class="stat-box"><div class="label">剩余次数</div><div class="value" style="${remainCls}">${monthRemain.toLocaleString()}</div>${quotaBar(monthUsed, totalQuota)}</div>
+    <div class="stat-box"><div class="label">今日用量</div><div class="value">${o.today_count}</div><div class="remain">成功 ${o.today_success} / 失败 ${o.today_failed}</div></div>
     <div class="stat-box"><div class="label">Key 池</div><div class="value">${stats.keys_active} <span>/ ${stats.keys_total}</span></div></div>
+    <div class="stat-box"><div class="label">Token 数</div><div class="value">${stats.tokens.length}</div></div>
   `;
+
+  // API usage info
+  const baseUrl = location.origin;
+  document.getElementById('api-base-url').textContent = baseUrl;
+  const firstToken = stats.tokens.length > 0 ? stats.tokens[0].token : 'YOUR_TOKEN';
+  document.getElementById('curl-example').innerHTML = `<button class="copy-code-btn" onclick="copyCurl()">复制</button><span class="comment"># Search 搜索</span>
+curl -X POST <span class="string">${baseUrl}/api/search</span> \\
+  -H <span class="string">"Content-Type: application/json"</span> \\
+  -H <span class="string">"Authorization: Bearer <span class="key">${firstToken}</span>"</span> \\
+  -d <span class="string">'{"query": "your search query"}'</span>
+
+<span class="comment"># Extract 内容提取</span>
+curl -X POST <span class="string">${baseUrl}/api/extract</span> \\
+  -H <span class="string">"Content-Type: application/json"</span> \\
+  -H <span class="string">"Authorization: Bearer <span class="key">${firstToken}</span>"</span> \\
+  -d <span class="string">'{"urls": ["https://example.com"]}'</span>
+
+<span class="comment"># 或在 body 中传 api_key</span>
+curl -X POST <span class="string">${baseUrl}/api/search</span> \\
+  -H <span class="string">"Content-Type: application/json"</span> \\
+  -d <span class="string">'{"api_key": "<span class="key">${firstToken}</span>", "query": "your search query"}'</span>`;
 
   // Tokens
   const tokensData = await api('GET', '/api/tokens');
@@ -151,17 +260,26 @@ async function refresh() {
   tbody.innerHTML = '';
   for (const t of tokensData.tokens) {
     const s = t.stats || {};
+    const unlimited = !t.hourly_limit && !t.daily_limit && !t.monthly_limit;
+    let quotaHtml;
+    if (unlimited) {
+      quotaHtml = '<span style="color:#1a8a1a;font-weight:600">无限制</span>';
+    } else {
+      const hr = t.hourly_limit - (s.hour_count||0);
+      const dr = t.daily_limit - (s.today_count||0);
+      const mr = t.monthly_limit - (s.month_count||0);
+      quotaHtml = `
+        <div>小时 ${s.hour_count||0}/${t.hourly_limit} <b style="color:${hr>0?'#1a8a1a':'#e74c3c'}">余 ${hr}</b>${quotaBar(s.hour_count||0, t.hourly_limit)}</div>
+        <div>今日 ${s.today_count||0}/${t.daily_limit} <b style="color:${dr>0?'#1a8a1a':'#e74c3c'}">余 ${dr}</b>${quotaBar(s.today_count||0, t.daily_limit)}</div>
+        <div>本月 ${s.month_count||0}/${t.monthly_limit} <b style="color:${mr>0?'#1a8a1a':'#e74c3c'}">余 ${mr}</b>${quotaBar(s.month_count||0, t.monthly_limit)}</div>`;
+    }
     tbody.innerHTML += `<tr>
       <td class="mono">${t.token}</td>
+      <td style="font-size:12px">${t.name||'-'}</td>
+      <td style="font-size:12px;line-height:2">${quotaHtml}</td>
       <td style="font-size:12px;line-height:1.8">
-        小时 ${s.hour_count||0} / ${t.hourly_limit}<br>
-        日 ${s.today_count||0} / ${t.daily_limit}<br>
-        月 ${s.month_count||0} / ${t.monthly_limit}
-      </td>
-      <td style="font-size:12px;line-height:1.8">
-        今日成功 ${s.today_success||0}<br>
-        今日失败 ${s.today_failed||0}<br>
-        本月成功 ${s.month_success||0}
+        成功 ${s.today_success||0} / 失败 ${s.today_failed||0}<br>
+        本月 ${s.month_success||0}
       </td>
       <td>
         <button class="btn btn-sm" onclick="copyText('${t.token}')">复制</button>
@@ -221,6 +339,29 @@ async function importKeys() {
 async function delKey(id) { if(confirm('确认删除？')){ await api('DELETE', `/api/keys/${id}`); refresh(); } }
 async function toggleKey(id, active) { await api('PUT', `/api/keys/${id}/toggle`, { active }); refresh(); }
 
+async function changePwd() {
+  const newPwd = document.getElementById('new-pwd').value.trim();
+  if (!newPwd || newPwd.length < 4) { alert('密码至少 4 位'); return; }
+  try {
+    await api('PUT', '/api/password', { password: newPwd });
+    PWD = newPwd;
+    localStorage.setItem('tavily_proxy_pwd', PWD);
+    document.getElementById('new-pwd').value = '';
+    document.getElementById('user-dropdown').classList.remove('show');
+    alert('密码已修改');
+  } catch(e) { alert('修改失败: ' + e.message); }
+}
+
+function copyCurl() {
+  const el = document.getElementById('curl-example');
+  const text = el.innerText.replace('复制', '').trim();
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = el.querySelector('.copy-code-btn');
+    btn.textContent = '已复制';
+    setTimeout(() => btn.textContent = '复制', 1500);
+  });
+}
+
 function copyText(t) {
   navigator.clipboard.writeText(t).then(() => {
     const el = event.target;
@@ -229,7 +370,7 @@ function copyText(t) {
   });
 }
 
-// Auto login if password cached
+// Auto login
 if (PWD) {
   api('GET', '/api/stats').then(() => {
     document.getElementById('login-box').classList.add('hidden');

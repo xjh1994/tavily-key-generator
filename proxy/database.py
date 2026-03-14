@@ -35,9 +35,9 @@ def init_db():
             id INTEGER PRIMARY KEY,
             token TEXT UNIQUE NOT NULL,
             name TEXT DEFAULT '',
-            hourly_limit INTEGER DEFAULT 100,
-            daily_limit INTEGER DEFAULT 500,
-            monthly_limit INTEGER DEFAULT 5000,
+            hourly_limit INTEGER DEFAULT 0,
+            daily_limit INTEGER DEFAULT 0,
+            monthly_limit INTEGER DEFAULT 0,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -151,7 +151,8 @@ def import_keys_from_text(text):
 def create_token(name=""):
     import random
     import string
-    token = "".join(random.choices(string.ascii_letters + string.digits, k=8))
+    # 生成类似真实 Tavily key 的长 token: tvly-xxxxxxxx...
+    token = "tvly-" + "".join(random.choices(string.ascii_letters + string.digits, k=32))
     conn = get_conn()
     try:
         conn.execute("INSERT INTO tokens (token, name) VALUES (?, ?)", (token, name))

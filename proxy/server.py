@@ -182,3 +182,14 @@ async def create_token(request: Request, _=Depends(verify_admin)):
 async def remove_token(token_id: int, _=Depends(verify_admin)):
     db.delete_token(token_id)
     return {"ok": True}
+
+
+@app.put("/api/password")
+async def change_password(request: Request, _=Depends(verify_admin)):
+    global ADMIN_PASSWORD
+    body = await request.json()
+    new_pwd = body.get("password", "").strip()
+    if not new_pwd or len(new_pwd) < 4:
+        raise HTTPException(status_code=400, detail="Password too short (min 4)")
+    ADMIN_PASSWORD = new_pwd
+    return {"ok": True}

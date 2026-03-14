@@ -198,7 +198,10 @@ class IntelligentTavilyAutomation:
                     time.sleep(1)
 
                     # 等待页面响应
-                    self.page.wait_for_load_state('networkidle', timeout=10000)
+                    try:
+                        self.page.wait_for_load_state('networkidle', timeout=10000)
+                    except:
+                        pass
                     return True
                     
                 except Exception as e:
@@ -207,10 +210,13 @@ class IntelligentTavilyAutomation:
             # 如果失败，刷新页面重试
             if attempt < retries - 1:
                 self.log("🔄 刷新页面后重试...")
-                self.page.reload()
-                self.page.wait_for_load_state('networkidle')
+                self.page.reload(wait_until='domcontentloaded')
+                try:
+                    self.page.wait_for_load_state('networkidle', timeout=10000)
+                except:
+                    pass
                 time.sleep(2)
-        
+
         self.log(f"❌ 最终未能点击 {element_name}")
         return False
     
@@ -253,10 +259,13 @@ class IntelligentTavilyAutomation:
             # 如果失败，刷新页面重试
             if attempt < retries - 1:
                 self.log("🔄 刷新页面后重试...")
-                self.page.reload()
-                self.page.wait_for_load_state('networkidle')
+                self.page.reload(wait_until='domcontentloaded')
+                try:
+                    self.page.wait_for_load_state('networkidle', timeout=10000)
+                except:
+                    pass
                 time.sleep(2)
-        
+
         self.log(f"❌ 最终未能填写 {element_name}")
         return False
     
@@ -264,9 +273,12 @@ class IntelligentTavilyAutomation:
         """导航到注册页面"""
         try:
             self.log("🌐 正在访问Tavily主页...")
-            self.page.goto(TAVILY_HOME_URL)
-            self.page.wait_for_load_state('networkidle')
-            
+            self.page.goto(TAVILY_HOME_URL, wait_until='domcontentloaded', timeout=60000)
+            try:
+                self.page.wait_for_load_state('networkidle', timeout=10000)
+            except:
+                self.log("⚠️ 页面资源加载超时，继续操作...")
+
             # 智能点击Sign Up按钮
             if self.smart_click('signup_button'):
                 self.log("✅ 成功导航到注册页面")
@@ -274,10 +286,13 @@ class IntelligentTavilyAutomation:
             else:
                 # 备选方案：直接访问注册页面
                 self.log("⚠️ 未找到Sign Up按钮，尝试直接访问注册页面...")
-                self.page.goto(TAVILY_SIGNUP_URL)
-                self.page.wait_for_load_state('networkidle')
+                self.page.goto(TAVILY_SIGNUP_URL, wait_until='domcontentloaded', timeout=60000)
+                try:
+                    self.page.wait_for_load_state('networkidle', timeout=10000)
+                except:
+                    pass
                 return True
-                
+
         except Exception as e:
             self.log(f"❌ 导航到注册页面失败: {e}")
             return False
@@ -452,8 +467,11 @@ class IntelligentTavilyAutomation:
 
             # 在当前浏览器中访问验证链接
             self.log("🔗 在浏览器中访问验证链接...")
-            self.page.goto(verification_link)
-            self.page.wait_for_load_state('networkidle', timeout=30000)
+            self.page.goto(verification_link, wait_until='domcontentloaded', timeout=60000)
+            try:
+                self.page.wait_for_load_state('networkidle', timeout=15000)
+            except:
+                pass
             time.sleep(3)
 
             # 检查是否需要登录
@@ -507,8 +525,11 @@ class IntelligentTavilyAutomation:
         try:
             import re
             # 尝试直接导航到 API key 页面
-            self.page.goto("https://app.tavily.com/home", timeout=30000)
-            self.page.wait_for_load_state('networkidle', timeout=15000)
+            self.page.goto("https://app.tavily.com/home", wait_until='domcontentloaded', timeout=60000)
+            try:
+                self.page.wait_for_load_state('networkidle', timeout=15000)
+            except:
+                pass
             time.sleep(3)
 
             # 在页面中查找 API key (格式: tvly-xxx)
