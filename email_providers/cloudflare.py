@@ -2,10 +2,11 @@
 """
 Cloudflare Email Worker 邮箱后端
 """
+
 import random
 import string
 import requests
-from config import EMAIL_API_URL, EMAIL_API_TOKEN, EMAIL_DOMAIN, EMAIL_PREFIX
+from config import EMAIL_API_URL, EMAIL_API_TOKEN, EMAIL_DOMAIN
 from .base import EmailProvider
 
 
@@ -17,10 +18,9 @@ class CloudflareEmailProvider(EmailProvider):
         self.headers = {"Authorization": f"Bearer {EMAIL_API_TOKEN}"}
 
     def create_email(self, prefix=None):
-        """生成 catch-all 邮箱地址"""
         if prefix is None:
-            prefix = EMAIL_PREFIX
-        suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+            prefix = "".join(random.choices(string.ascii_lowercase, k=6))
+        suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
         return f"{prefix}-{suffix}@{EMAIL_DOMAIN}"
 
     def get_messages(self, address):

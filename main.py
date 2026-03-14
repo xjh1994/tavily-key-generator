@@ -3,14 +3,21 @@
 Tavily API Key 自动注册工具
 支持多线程并行注册，带冷却间隔避免风控
 """
+
 import sys
 import time
 import random
+import string
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from intelligent_tavily_automation import IntelligentTavilyAutomation
-from config import EMAIL_PREFIX, CAPTCHA_SOLVER
+from config import CAPTCHA_SOLVER
 import config
+
+
+def generate_random_prefix():
+    return "".join(random.choices(string.ascii_lowercase, k=6))
+
 
 # 统计
 lock = threading.Lock()
@@ -26,16 +33,26 @@ COOLDOWN = 45  # 两次注册启动间隔（秒）
 def detect_backends():
     """检测已配置的邮箱后端"""
     backends = []
-    if getattr(config, 'EMAIL_DOMAIN', '') and getattr(config, 'EMAIL_API_URL', '') and getattr(config, 'EMAIL_API_TOKEN', ''):
-        backends.append({
-            'name': 'cloudflare',
-            'label': f"Cloudflare ({config.EMAIL_DOMAIN})",
-        })
-    if getattr(config, 'DUCKMAIL_BEARER', '') and getattr(config, 'DUCKMAIL_DOMAIN', ''):
-        backends.append({
-            'name': 'duckmail',
-            'label': f"DuckMail ({config.DUCKMAIL_DOMAIN})",
-        })
+    if (
+        getattr(config, "EMAIL_DOMAIN", "")
+        and getattr(config, "EMAIL_API_URL", "")
+        and getattr(config, "EMAIL_API_TOKEN", "")
+    ):
+        backends.append(
+            {
+                "name": "cloudflare",
+                "label": f"Cloudflare ({config.EMAIL_DOMAIN})",
+            }
+        )
+    if getattr(config, "DUCKMAIL_BEARER", "") and getattr(
+        config, "DUCKMAIL_DOMAIN", ""
+    ):
+        backends.append(
+            {
+                "name": "duckmail",
+                "label": f"DuckMail ({config.DUCKMAIL_DOMAIN})",
+            }
+        )
     return backends
 
 
@@ -46,17 +63,17 @@ def choose_backend(backends):
         sys.exit(1)
     if len(backends) == 1:
         print(f"📮 邮箱后端: {backends[0]['label']}")
-        return backends[0]['name']
+        return backends[0]["name"]
 
     print("📮 可用邮箱后端:")
     for i, b in enumerate(backends, 1):
         print(f"  {i}. {b['label']}")
     while True:
         choice = input(f"选择 (默认 1): ").strip()
-        if choice == '':
-            return backends[0]['name']
+        if choice == "":
+            return backends[0]["name"]
         if choice.isdigit() and 1 <= int(choice) <= len(backends):
-            return backends[int(choice) - 1]['name']
+            return backends[int(choice) - 1]["name"]
         print("❌ 无效选择")
 
 
@@ -87,7 +104,7 @@ def register_one(task_id, total, provider_name):
     try:
         config.EMAIL_PROVIDER = provider_name
         automation = IntelligentTavilyAutomation()
-        automation.email_prefix = EMAIL_PREFIX
+        automation.email_prefix = generate_random_prefix()
         automation.start_browser(headless=True)
 
         start_time = time.time()
@@ -97,7 +114,9 @@ def register_one(task_id, total, provider_name):
         with lock:
             if api_key:
                 success_count += 1
-                print(f"✅ [{task_id}/{total}] 成功 | {automation.email} | {api_key[:20]}... | {elapsed:.0f}s")
+                print(
+                    f"✅ [{task_id}/{total}] 成功 | {automation.email} | {api_key[:20]}... | {elapsed:.0f}s"
+                )
             else:
                 fail_count += 1
                 print(f"❌ [{task_id}/{total}] 失败 | {elapsed:.0f}s")
@@ -131,7 +150,9 @@ def main():
     count = int(count_input) if count_input.isdigit() and int(count_input) > 0 else 10
 
     threads_input = input(f"🧵 并行线程 (默认 2): ").strip()
-    threads = int(threads_input) if threads_input.isdigit() and int(threads_input) > 0 else 2
+    threads = (
+        int(threads_input) if threads_input.isdigit() and int(threads_input) > 0 else 2
+    )
     threads = min(threads, count)
 
     print(f"\n📋 配置: {count} 个账户 / {threads} 线程 / 间隔 {COOLDOWN}s")
@@ -142,7 +163,10 @@ def main():
     start_time = time.time()
 
     with ThreadPoolExecutor(max_workers=threads) as executor:
-        futures = [executor.submit(register_one, i, count, provider_name) for i in range(1, count + 1)]
+        futures = [
+            executor.submit(register_one, i, count, provider_name)
+            for i in range(1, count + 1)
+        ]
         for future in as_completed(futures):
             pass
 
